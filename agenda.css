@@ -724,6 +724,7 @@ body:not(.tv) #barraEvento {
   backdrop-filter: none;
   flex: 0 0 auto;
   justify-content: flex-start;
+  height: 60px;
 }
 /* tamanho fixo, qualquer que seja o evento (em telas menores continua 100% da largura) */
 @media (min-width: 1101px) {
@@ -731,7 +732,8 @@ body:not(.tv) #barraEvento {
 }
 /* o texto começa na borda direita da barra e atravessa até sair pela esquerda */
 body:not(.tv) #textoBarra {
-  font-size: 22px; font-weight: 600; letter-spacing: .2px;
+  font-size: clamp(22px, 2.8vw, 44px); font-weight: 700; letter-spacing: .2px;
+  line-height: 1.2;
   padding-left: 100%;
   animation: deslizarFixo 20s linear infinite;
 }
