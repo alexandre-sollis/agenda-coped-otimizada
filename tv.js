@@ -709,7 +709,7 @@
         r += "body.tv .stat-value-lg{font-size:" + px(68, f) + "}";
         r += "body.tv .table-container{margin:0 " + px(30, f) + " " + px(20, f) + "}";
         r += "body.tv th{padding:" + px(18, f) + ";font-size:" + px(26, f) + "}";
-        r += "body.tv td{padding:" + px(16, f) + ";font-size:" + px(36, f) + "}";
+        r += "body.tv td{padding:" + px(16, f) + ";font-size:" + px(40, f) + "}";
         r += "body.tv footer{height:" + px(55, f) + "}";
         r += "body.tv #avisos{font-size:" + px(30, f) + "}";
         r += "body.tv #erroTela{bottom:" + px(55, f) + ";font-size:" + px(26, f) + "}";
