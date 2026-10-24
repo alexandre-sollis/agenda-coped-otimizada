@@ -16,11 +16,11 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 
-<link rel="stylesheet" href="agenda.css?v=26">
+<link rel="stylesheet" href="agenda.css?v=28">
 
 <!-- Chave do Firebase e funções compartilhadas (agenda-utils.js) -->
 <script src="agenda-config.js"></script>
-<script src="agenda-utils.js?v=26"></script>
+<script src="agenda-utils.js?v=28"></script>
 <!-- A biblioteca de Excel (~900 KB) NÃO é mais carregada aqui: o app.js
      baixa só quando alguém clica em "Baixar" ou "Importar" Excel. -->
 
@@ -210,11 +210,11 @@ window.onerror = function(msg, src, line){
 
 <!-- Modo TV (?tv=1): script simples, sem módulos e sem SDK do Firebase.
      Uso normal (edição): app.js como módulo, carregado UMA única vez aqui.
-     Ao alterar QUALQUER arquivo, troque 26 por 27 (e assim por diante) em:
-     VERSAO abaixo e nos dois "?v=26" do <head>. -->
+     Ao alterar QUALQUER arquivo, troque 28 por 29 (e assim por diante) em:
+     VERSAO abaixo e nos dois "?v=28" do <head>. -->
 <script>
 (function(){
-  var VERSAO = "26";
+  var VERSAO = "28";
   var tv = /[?&]tv(=|&|$)/.test(window.location.search);
   var s = document.createElement("script");
   if(tv){
