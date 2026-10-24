@@ -1061,3 +1061,10 @@ body.tv .table-container thead th {
     font-weight: 700;
     text-align: center;
 }
+
+/* 5) Letreiros do modo TV: cada um vira uma camada própria da placa de vídeo,
+   para o movimento não obrigar o navegador a redesenhar o texto a cada quadro. */
+body.tv #avisos,
+body.tv #textoBarra {
+    will-change: transform;
+}
