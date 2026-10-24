@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Agenda Institucional | DRE Cáceres</title>
+
+<link rel="icon" href="favicon.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="agenda.css?v=22">
+
+<!-- Chave do Firebase e funções compartilhadas (agenda-utils.js) -->
+<script src="agenda-config.js"></script>
+<script src="agenda-utils.js?v=22"></script>
+<!-- A biblioteca de Excel (~900 KB) NÃO é mais carregada aqui: o app.js
+     baixa só quando alguém clica em "Baixar" ou "Importar" Excel. -->
+
+</head>
+
+<body>
+
+<div class="background"></div>
+
+<header>
+<div id="barraEvento">
+        <span id="textoBarra">Nenhum evento programado.</span>
+    </div>
+
+<div class="logo-area">
+        <div class="logo">
+            <img src="logo.png" alt="DRE Cáceres" width="300" height="162">
+        </div>
+        <div>
+            <h1>DRE CÁCERES - COPED</h1>
+            <p>Agenda Institucional | Alexandre Oliveira</p>
+        </div>
+    </div>
+</header>
+
+<main>
+
+<section class="dashboard">
+
+<div class="stat-card stat-card-lg">
+<div class="stat-left">
+<span class="stat-label">Eventos</span>
+</div>
+<span class="stat-value stat-value-lg" id="totalEventos">0</span>
+</div>
+
+<div class="stat-card stat-card-lg">
+<div class="stat-left">
+<span class="stat-label">Hoje</span>
+</div>
+<span class="stat-value stat-value-lg" id="eventosHoje">0</span>
+</div>
+
+<a href="https://docs.google.com/spreadsheets/d/1XQ6_Qv-6bJEQRmN0HyV5X4o3v_WMGuGm1PFmLfLrx0o/edit?usp=sharing" target="_blank" rel="noopener" class="stat-card-link">
+
+<div class="stat-card stat-card-lg card-gradient">
+                <div class="stat-left">
+                    <span class="stat-label2">Dados<br>Escolares</span>
+                </div>
+            </div>
+
+</a>
+
+<div class="dashboard-actions">
+
+<div class="dashboard-actions-grid">
+
+<button id="btnAdicionarLinha" class="btn-novo-evento">
+➕ Novo Evento
+</button>
+
+<button id="btnRemoverLinha" class="btn-novo-evento2">
+➖ Excluir Evento
+</button>
+
+<button id="btnBaixarExcel" class="btn-baixar-excel">
+⬇️ Baixar em Excel
+</button>
+
+<button id="btnImportarExcel" class="btn-novo-evento">
+📤 Importar Excel
+</button>
+
+</div>
+
+<span id="statusSalvar" class="status-salvar"></span>
+
+<input type="file" id="inputImportarExcel" accept=".xlsx,.xls,.csv" style="display:none;">
+
+</div>
+    </section>
+
+<section class="table-container">
+
+<table id="agenda">
+
+<thead>
+
+<tr>
+
+<th width="7%">Início</th>
+
+<th width="7%">Fim</th>
+
+<th width="8%">Horário</th>
+
+<th style="display:none;">Aviso</th>
+
+<th width="12%">Período</th>
+
+<th> Ações</th>
+
+<th width="22%">Responsável</th>
+
+</tr>
+
+</thead>
+
+<tbody id="tbody">
+
+</tbody>
+
+</table>
+
+<div class="pagination-dots" id="paginationDots">
+<span class="dot active"></span>
+<span class="dot"></span>
+<span class="dot"></span>
+</div>
+
+</section>
+
+</main>
+
+<div id="alertaEvento" class="alerta">
+
+<div class="alerta-box">
+
+<h1>🔔 Próximo Evento</h1>
+
+<h2 id="tituloEvento"></h2>
+
+<p id="horaEvento"></p>
+
+<div id="contadorEvento"></div>
+
+</div>
+
+</div>
+
+<footer>
+
+<div class="ticker">
+
+<div id="avisos">
+
+📢 Bem-vindos à Agenda Institucional da DRE Cáceres.
+
+</div>
+
+</div>
+
+</footer>
+
+<template id="linha">
+
+<tr>
+
+<td contenteditable="true"></td>
+
+<td contenteditable="true"></td>
+
+<td contenteditable="true"></td>
+
+<td contenteditable="true" style="display:none;">15</td>
+
+<td contenteditable="true"></td>
+
+<td contenteditable="true"></td>
+
+<td contenteditable="true"></td>
+
+</tr>
+
+</template>
+
+<!-- Mostra na barra do topo qualquer erro de script (útil para depurar a TV) -->
+<script>
+window.mostrarFalha = function(t){
+  var el = document.getElementById('textoBarra');
+  if(el) el.textContent = t;
+};
+window.onerror = function(msg, src, line){
+  mostrarFalha('Erro: ' + msg + ' (' + String(src).split('/').pop() + ':' + line + ')');
+};
+</script>
+
+<!-- Modo TV (?tv=1): script simples, sem módulos e sem SDK do Firebase.
+     Uso normal (edição): app.js como módulo, carregado UMA única vez aqui.
+     Ao alterar QUALQUER arquivo, troque 22 por 23 (e assim por diante) em:
+     VERSAO abaixo e nos dois "?v=22" do <head>. -->
+<script>
+(function(){
+  var VERSAO = "22";
+  var tv = /[?&]tv(=|&|$)/.test(window.location.search);
+  var s = document.createElement("script");
+  if(tv){
+    s.src = "tv.js?v=" + VERSAO;
+  }else{
+    s.type = "module";
+    s.src = "app.js?v=" + VERSAO;
+  }
+  s.onerror = function(){
+    mostrarFalha("Falha ao carregar " + (tv ? "tv.js" : "app.js ou firebase.js"));
+  };
+  document.body.appendChild(s);
+})();
+</script>
+
+</body>
+
+</html>
