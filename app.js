@@ -40,15 +40,35 @@ function ajustarScrollFixo() {
     const header = document.querySelector("header");
     const dashboard = document.querySelector(".dashboard");
     if (header && dashboard) dashboard.style.top = header.offsetHeight + "px";
+    ajustarAlturaTabela();
+}
+
+// A tabela ocupa todo o espaço entre os cards e a barra azul do rodapé
+// (no celular, até 650px, a página rola normalmente e isso não se aplica).
+function ajustarAlturaTabela() {
+    const cont = document.querySelector(".table-container");
+    const rodape = document.querySelector("footer");
+    if (!cont || !rodape) return;
+
+    if (window.innerWidth <= 650) {
+        cont.style.height = "";
+        return;
+    }
+
+    const topo = cont.getBoundingClientRect().top + window.scrollY;
+    const base = window.innerHeight - rodape.offsetHeight;
+    cont.style.height = Math.max(base - topo, 160) + "px";
 }
 
 ajustarScrollFixo();
 window.addEventListener("load", ajustarScrollFixo);
+window.addEventListener("resize", ajustarScrollFixo);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustarScrollFixo);
 if (window.ResizeObserver) {
-    // acompanha qualquer mudança de altura do cabeçalho (fonte carregando, rotação da tela...)
-    new ResizeObserver(ajustarScrollFixo).observe(document.querySelector("header"));
-} else {
-    window.addEventListener("resize", ajustarScrollFixo);
+    // acompanha qualquer mudança de altura do cabeçalho ou dos cards
+    const ro = new ResizeObserver(ajustarScrollFixo);
+    ro.observe(document.querySelector("header"));
+    ro.observe(document.querySelector(".dashboard"));
 }
 
 /* =====================================================
