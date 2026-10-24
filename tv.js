@@ -22,7 +22,6 @@
         "/databases/(default)/documents/agenda/principal?key=" + API_KEY;
 
     var INTERVALO_MS = 60 * 1000;
-    var RSS_G1 = U.RSS_G1;
 
     document.body.className += " tv";
 
@@ -296,27 +295,111 @@
 
     /* ---------- notícias ---------- */
 
-    function carregarNoticias() {
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(RSS_G1), true);
-        xhr.timeout = 20000;
+    /* As manchetes passam em GRUPOS CURTOS. Uma faixa única com todas as notícias
+       fica com milhares de pixels de largura; TVs e navegadores simples não
+       conseguem manter uma imagem tão larga na placa de vídeo e passam a
+       redesenhar o texto a cada quadro, o que faz o movimento travar.
+       O grupo novo só entra quando o anterior termina de passar. */
 
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState !== 4 || xhr.status !== 200) return;
-            try {
-                var d = JSON.parse(xhr.responseText);
-                if (d.status !== "ok" || !d.items) return;
+    var SEPARADOR_NOTICIAS = "     \u2022     ";
+    var MAX_CARACTERES_GRUPO = 260;
+    var noticias = [];
+    var noticiaIdx = 0;
 
-                var titulos = [];
-                for (var i = 0; i < d.items.length && titulos.length < 8; i++) {
-                    var t = String(d.items[i].title || "").trim();
-                    if (t && U.manchetePermitida(t)) titulos.push(t);
+    function definirNoticias(lista) {
+        noticias = lista;
+        noticiaIdx = 0;
+    }
+
+    // devolve o próximo grupo de manchetes (ou "" se ainda não há notícias)
+    function proximoGrupoNoticias() {
+        if (!noticias.length) return "";
+        var texto = "", usados = 0;
+        while (usados < noticias.length) {
+            texto += noticias[noticiaIdx] + SEPARADOR_NOTICIAS;
+            noticiaIdx = (noticiaIdx + 1) % noticias.length;
+            usados++;
+            if (texto.length >= MAX_CARACTERES_GRUPO) break;
+        }
+        return texto;
+    }
+
+    // Mesmas fontes de reserva da página de edição. Cada feed (de educação e,
+    // se falhar, o geral) é tentado por cada serviço, até algum devolver manchetes.
+    var FONTES_NOTICIAS = [
+        { tipo: "json", url: function (f) { return "https://api.rss2json.com/v1/api.json?rss_url=" + encodeURIComponent(f); } },
+        { tipo: "xml", url: function (f) { return "https://api.allorigins.win/raw?url=" + encodeURIComponent(f); } },
+        { tipo: "xml", url: function (f) { return "https://corsproxy.io/?url=" + encodeURIComponent(f); } }
+    ];
+
+    // devolve a lista de títulos (pode vir vazia)
+    function extrairTitulos(tipo, texto) {
+        var lista = [], i, t;
+        if (tipo === "json") {
+            var d = JSON.parse(texto);
+            if (d.status !== "ok" || !d.items) return lista;
+            for (i = 0; i < d.items.length; i++) lista.push(d.items[i].title);
+        } else {
+            // sem DOMParser (TVs antigas): lê os <title> dentro de cada <item>
+            var itens = texto.split(/<item[\s>]/i);
+            for (i = 1; i < itens.length; i++) {
+                var m = itens[i].match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+                if (m) {
+                    t = m[1].replace(/^\s*<!\[CDATA\[/, "").replace(/\]\]>\s*$/, "");
+                    lista.push(t);
                 }
-                if (titulos.length) avisos.textContent = titulos.join("     •     ");
-            } catch (e) { /* mantém o texto atual do rodapé */ }
-        };
+            }
+        }
+        return lista;
+    }
 
-        xhr.send();
+    function carregarNoticias() {
+        var tentativas = [], f, s;
+        for (f = 0; f < U.RSS_FEEDS.length; f++) {
+            for (s = 0; s < FONTES_NOTICIAS.length; s++) {
+                tentativas.push({ feed: U.RSS_FEEDS[f], fonte: FONTES_NOTICIAS[s] });
+            }
+        }
+
+        function tentar(n) {
+            if (n >= tentativas.length) return;   // nada deu certo: mantém o texto atual do rodapé
+
+            var tent = tentativas[n];
+            var xhr = new XMLHttpRequest();
+            var seguiu = false;
+
+            function proxima() {
+                if (seguiu) return;
+                seguiu = true;
+                tentar(n + 1);
+            }
+
+            xhr.open("GET", tent.fonte.url(tent.feed), true);
+            xhr.timeout = 15000;
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState !== 4 || seguiu) return;
+                if (xhr.status !== 200) { proxima(); return; }
+                try {
+                    var brutos = extrairTitulos(tent.fonte.tipo, xhr.responseText);
+                    var titulos = [];
+                    for (var i = 0; i < brutos.length && titulos.length < 8; i++) {
+                        var t = String(brutos[i] || "").trim();
+                        if (t && U.manchetePermitida(t)) titulos.push(t);
+                    }
+                    if (titulos.length) {
+                        seguiu = true;
+                        definirNoticias(titulos);
+                    } else {
+                        proxima();
+                    }
+                } catch (e) { proxima(); }
+            };
+
+            xhr.send();
+        }
+
+        tentar(0);
     }
 
     /* ---------- rolagem automática (contínua e suave) ----------
@@ -351,8 +434,10 @@
        é desligado e os outros continuam. */
     var passos = [];
 
-    function laco() {
-        var agora = new Date().getTime();
+    function laco(ts) {
+        // O horário que o navegador entrega a cada quadro está sincronizado com a
+        // tela; usar new Date() aqui causava passos desiguais (efeito "travando").
+        var agora = (typeof ts === "number" && ts > 0) ? ts : new Date().getTime();
         for (var i = 0; i < passos.length; i++) {
             try {
                 passos[i](agora);
@@ -505,7 +590,6 @@
         var ultimo = 0;
         var larg = 0;
         var jan = 0;
-        var medidoEm = 0;
 
         avisos.style.animation = "none";
         avisos.style.webkitAnimation = "none";
@@ -513,20 +597,30 @@
         avisos.style.webkitBackfaceVisibility = "hidden";
         avisos.textContent = "Bem-vindos à Agenda Institucional da DRE Cáceres.";
 
+        // Mede só quando o texto muda (a cada volta), nunca durante o movimento:
+        // medir força o navegador a recalcular a página e causa um tranco.
+        function medir() {
+            larg = avisos.offsetWidth;
+            jan = janela.clientWidth;
+        }
+
         function passo(agora) {
-            // mede no máximo 1 vez por segundo (medir a cada quadro deixa tudo lento)
-            if (agora - medidoEm > 1000) {
-                larg = avisos.offsetWidth;
-                jan = janela.clientWidth;
-                medidoEm = agora;
+            if (x === null) {
+                medir();
+                x = jan;
             }
 
             var dt = ultimo ? Math.min(agora - ultimo, 250) : 0;
             ultimo = agora;
 
-            if (x === null) x = jan;
             x -= VELOCIDADE_TICKER_PX_S * dt / 1000;
-            if (x < -larg) x = jan;
+
+            if (x < -larg) {            // terminou de passar: entra o próximo grupo
+                var proximo = proximoGrupoNoticias();
+                if (proximo) avisos.textContent = proximo;
+                medir();
+                x = jan;
+            }
 
             var v = "translate3d(" + x + "px,0,0)";
             avisos.style.webkitTransform = v;
