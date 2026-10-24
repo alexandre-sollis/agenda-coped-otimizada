@@ -724,15 +724,15 @@ body:not(.tv) #barraEvento {
   backdrop-filter: none;
   flex: 0 0 auto;
   justify-content: flex-start;
-  height: 60px;
+  height: 72px;
 }
-/* tamanho fixo, qualquer que seja o evento (em telas menores continua 100% da largura) */
+/* ocupa todo o espaço livre até o logo (tamanho independente do texto do evento; em telas menores continua 100% da largura) */
 @media (min-width: 1101px) {
-  body:not(.tv) #barraEvento { width: clamp(300px, 40vw, 640px); }
+  body:not(.tv) #barraEvento { flex: 1 1 0; width: auto; min-width: 0; margin-right: 32px; }
 }
 /* o texto começa na borda direita da barra e atravessa até sair pela esquerda */
 body:not(.tv) #textoBarra {
-  font-size: clamp(22px, 2.8vw, 44px); font-weight: 700; letter-spacing: .2px;
+  font-size: clamp(32px, 3.4vw, 54px) !important; font-weight: 700; letter-spacing: .2px;
   line-height: 1.2;
   padding-left: 100%;
   animation: deslizarFixo 20s linear infinite;
