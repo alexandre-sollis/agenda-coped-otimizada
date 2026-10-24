@@ -796,7 +796,7 @@ body:not(.tv) .stat-label2 { font-size: 20px; letter-spacing: 1.5px; font-weight
 /* ===== Botões: formato pílula moderno ===== */
 body:not(.tv) .dashboard-actions-grid { gap: 12px; }
 body:not(.tv) .dashboard-actions-grid button {
-  border-radius: 999px;
+  border-radius: var(--r-radius);
   font-family: inherit;
   font-weight: 700;
   font-size: 14px;
