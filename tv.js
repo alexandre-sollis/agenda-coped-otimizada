@@ -207,14 +207,35 @@
         //    entre o canto esquerdo e o logo (ver "body.tv #barraEvento" no CSS)
         var b = contBarra.clientWidth;
 
-        // 3) repete a unidade até cobrir a barra + 1 unidade (sem buracos)
-        var n = Math.max(Math.ceil(b / Math.max(barraP, 1)) + 1, 2);
+        // 3) repete a unidade até cobrir a barra + 1 unidade (sem buracos).
+        //    Com a placa de vídeo fazendo o movimento, repete mais vezes (até
+        //    ~3000 px) para a faixa andar vários trechos antes de recomeçar.
+        var minimo = Math.max(Math.ceil(b / Math.max(barraP, 1)) + 1, 2);
+        var n = minimo;
+        if (SUPORTA_TRANSICAO) n = Math.min(Math.max(minimo, Math.floor(3000 / Math.max(barraP, 1))), 60);
         var s = "";
         for (var i = 0; i < n; i++) s += barraUnidade + SEPARADOR_BARRA;
         textoBarra.textContent = s;
 
-        barraPos = -b;      // começa entrando pela direita
+        barraPos = -b;      // começa entrando pela direita (modo de reserva)
         barraUlt = 0;
+
+        if (SUPORTA_TRANSICAO) {
+            // viagem = múltiplo exato da unidade, para a volta ao início ser invisível
+            barraViagem = (n - Math.ceil(b / Math.max(barraP, 1))) * barraP;
+            barraLargura = b;
+            cicloBarra(true);
+        }
+    }
+
+    var barraViagem = 0;
+    var barraLargura = 0;
+
+    function cicloBarra(primeira) {
+        if (!barraP || !barraViagem) return;
+        correr(textoBarra, primeira ? barraLargura : 0, -barraViagem, VELOCIDADE_BARRA_PX_S, function () {
+            cicloBarra(false);
+        });
     }
 
     function definirTextoBarra(texto) {
@@ -250,7 +271,7 @@
         contBarra.style.webkitJustifyContent = "flex-start";
         contBarra.style.justifyContent = "flex-start";
 
-        passos.push(quadroBarra);
+        if (!SUPORTA_TRANSICAO) passos.push(quadroBarra);
     }
 
     /* ---------- busca da agenda ---------- */
@@ -434,6 +455,61 @@
        é desligado e os outros continuam. */
     var passos = [];
 
+    /* ---------- movimento dos letreiros pela placa de vídeo ----------
+       Antes os dois letreiros eram movidos quadro a quadro pelo JavaScript,
+       no mesmo processador que também move a tabela, mede e redesenha; se a
+       TV atrasa um quadro, o letreiro "trava". Agora o JavaScript só diz
+       "vá da posição A até a B nesta velocidade" (transição de transform) e
+       a placa de vídeo faz o movimento sozinha, mesmo que o processador
+       esteja ocupado. Se a TV for antiga demais para isso, o modo quadro a
+       quadro de antes continua como reserva automática. */
+
+    var SUPORTA_TRANSICAO = (function () {
+        var st = document.body.style;
+        return ("transition" in st) || ("webkitTransition" in st);
+    })();
+
+    function aplicarTransform(el, v) {
+        el.style.webkitTransform = v;
+        el.style.transform = v;
+    }
+
+    // Move "el" de "de" até "para" (pixels, no eixo X), em velocidade constante,
+    // e chama "fim" quando termina.
+    function correr(el, de, para, pxPorSeg, fim) {
+        var dur = Math.max(Math.abs(de - para) / pxPorSeg, 0.2);
+        var token = (el._tokenMov || 0) + 1;
+        el._tokenMov = token;
+
+        // 1) vai para o ponto de partida, sem animação
+        el.style.webkitTransition = "none";
+        el.style.transition = "none";
+        aplicarTransform(el, "translate3d(" + de + "px,0,0)");
+        void el.offsetWidth;                       // confirma a posição inicial
+
+        // 2) anima até o ponto final
+        el.style.webkitTransition = "-webkit-transform " + dur + "s linear";
+        el.style.transition = "transform " + dur + "s linear";
+        aplicarTransform(el, "translate3d(" + para + "px,0,0)");
+
+        // 3) avisa quando terminar (fim da transição ou, por segurança, um relógio)
+        var acabou = false;
+        function terminar() {
+            if (acabou || el._tokenMov !== token) return;
+            acabou = true;
+            el.removeEventListener("transitionend", aoTerminar, false);
+            el.removeEventListener("webkitTransitionEnd", aoTerminar, false);
+            fim();
+        }
+        function aoTerminar(e) {
+            if (e && e.target !== el) return;
+            terminar();
+        }
+        el.addEventListener("transitionend", aoTerminar, false);
+        el.addEventListener("webkitTransitionEnd", aoTerminar, false);
+        setTimeout(terminar, dur * 1000 + 600);
+    }
+
     function laco(ts) {
         // O horário que o navegador entrega a cada quadro está sincronizado com a
         // tela; usar new Date() aqui causava passos desiguais (efeito "travando").
@@ -604,6 +680,16 @@
             jan = janela.clientWidth;
         }
 
+        // modo normal: a placa de vídeo move a faixa; aqui só se encadeia uma volta na outra
+        function ciclo() {
+            var proximo = proximoGrupoNoticias();
+            if (proximo) avisos.textContent = proximo;
+            medir();
+            if (!larg || !jan) { setTimeout(ciclo, 500); return; }   // ainda sem layout
+            correr(avisos, jan, -larg, VELOCIDADE_TICKER_PX_S, ciclo);
+        }
+
+        // modo de reserva (TV muito antiga): move quadro a quadro
         function passo(agora) {
             if (x === null) {
                 medir();
@@ -622,12 +708,14 @@
                 x = jan;
             }
 
-            var v = "translate3d(" + x + "px,0,0)";
-            avisos.style.webkitTransform = v;
-            avisos.style.transform = v;
+            aplicarTransform(avisos, "translate3d(" + x + "px,0,0)");
         }
 
-        passos.push(passo);
+        if (SUPORTA_TRANSICAO) {
+            ciclo();
+        } else {
+            passos.push(passo);
+        }
     }
 
     /* ---------- rolagem infinita ----------
