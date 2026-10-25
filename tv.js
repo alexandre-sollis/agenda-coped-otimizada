@@ -154,6 +154,8 @@
        A regra de qual é o "próximo evento" está em agenda-utils.js
        (a mesma usada na página de edição). */
 
+    var ultimoAvisoSom = "";
+
     function atualizarBarra() {
         var agora = new Date();
         var i, k;
@@ -170,6 +172,15 @@
         definirTextoBarra(p ? p.texto : "Nenhum evento programado.");
 
         if (!p) return;
+
+        // alerta sonoro (5 minutos antes, ~3 segundos), uma vez por evento
+        if (p.temHora && U.naJanelaDoAlerta(p.ms)) {
+            var chave = p.item.acao + p.item.horario + p.quando.toDateString();
+            if (chave !== ultimoAvisoSom) {
+                ultimoAvisoSom = chave;
+                if (!U.avisoJaFeito(chave)) U.tocarAlerta();
+            }
+        }
 
         // faltando 5 minutos ou menos: destaca a linha (e as cópias da rolagem infinita)
         if (p.temHora && p.ms <= 300000 && p.item._tr) {
